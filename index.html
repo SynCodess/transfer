@@ -46,8 +46,6 @@ textarea.in{height:260px;padding:12px 14px;resize:vertical;line-height:1.5}
 .stage{display:flex;justify-content:center;padding:32px 16px;background:#ECE9F7}
 .phone{position:sticky;top:20px;width:340px;height:700px;border:10px solid var(--ink);border-radius:46px;overflow:hidden;box-shadow:0 30px 60px rgba(21,19,31,.3)}
 .phone .dk{height:100%;overflow-y:auto;scrollbar-width:none}.phone .vc{padding-top:36px}
-#kx{position:fixed;inset:0;background:rgba(21,19,31,.85);display:flex;align-items:center;justify-content:center;padding:20px;z-index:30}
-.kb{background:#fff;border-radius:20px;padding:24px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}.kb h2{margin:0;font:800 22px 'Bricolage Grotesque',sans-serif}.kb p{margin:0;font-size:14px;color:var(--muted)}
 @media(max-width:900px){.split{grid-template-columns:1fr}.panel{padding:22px 16px;border:0}.stage{display:none}.top{padding:12px 16px}}
 </style>
 </head>
@@ -72,11 +70,10 @@ textarea.in{height:260px;padding:12px 14px;resize:vertical;line-height:1.5}
     <section class="stage"><div class="phone"><div class="dk"><div class="vc" id="pv"></div></div></div></section>
   </div>
 </div>
-<div id="kx" hidden><div class="kb"><h2>Clave de acceso</h2><p>La misma que pusiste como ADMIN_KEY en el Worker. Se guarda solo en este dispositivo.</p><input id="ki" class="in" type="password" autocomplete="off"><button id="kb" class="tb pr" type="button">Entrar</button></div></div>
 <div class="toast" id="toast"></div>
 <script>
 (function(){'use strict';
-const API='https://PON-AQUI-TU-WORKER.workers.dev?x=1';
+const API='https://datostransfer.jairletelier23.workers.dev?x=1';
 const $=s=>document.querySelector(s);
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
 const g=k=>{try{return localStorage.getItem(k)}catch(e){return null}},st=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -104,26 +101,22 @@ if(qid&&!q.has('edit')){
   return;
 }
 $('#ed').hidden=false;
-let KEY=g('tr-key')||'',list=[],cur={id:'',t:'',raw:''};
+let list=[],cur={id:'',t:'',raw:''};
 const base=()=>location.protocol==='file:'?location.href.split(/[?#]/)[0]:location.origin+location.pathname.replace(/index\.html$/,'');
 const link=()=>cur.id?base()+'?id='+cur.id:'';
 const mk=t=>(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,12)||'t')+'-'+Array.from(crypto.getRandomValues(new Uint8Array(5))).map(x=>(x%36).toString(36)).join('');
-const askKey=()=>{$('#kx').hidden=false;$('#ki').focus();};
-function api(method,id,body){
-  return fetch(API+(id?'&id='+encodeURIComponent(id):'')+'&t='+Date.now(),{method,headers:Object.assign({'X-Key':KEY},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined}).then(r=>r.json()).then(j=>{
-    if(!j.ok){if(j.error==='No autorizado'){KEY='';st('tr-key','');askKey();}throw new Error(j.error||'Error');}return j;});
-}
+function api(method,id,body){return fetch(API+(id?'&id='+encodeURIComponent(id):'')+'&t='+Date.now(),{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined}).then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||'Error');return j;});}
 function drawSel(){const s=$('#sel');s.innerHTML='';const o0=el('option','','Mis tarjetas ('+list.length+')');o0.value='';s.appendChild(o0);list.forEach(c=>{const o=el('option','',c.t||c.id);o.value=c.id;if(c.id===cur.id)o.selected=true;s.appendChild(o);});}
 function draw(){render($('#pv'),cur);$('#lk').textContent=link()?link().replace(/^https?:\/\//,''):'Guarda la tarjeta para generar el enlace';}
 function setCur(c){cur={id:c.id||'',t:c.t||'',raw:c.raw||''};$('#t').value=cur.t;$('#raw').value=cur.raw;draw();drawSel();}
 function dirty(){const s=list.find(x=>x.id===cur.id);return s?(s.t!==cur.t.trim()||s.raw!==cur.raw):!!(cur.t||cur.raw);}
-function sync(){if(!KEY)return;api('GET','').then(j=>{list=j.items||[];drawSel();}).catch(e=>toast(e.message));}
+function sync(){api('GET','').then(j=>{list=j.items||[];drawSel();}).catch(e=>toast(e.message));}
 function onIn(){cur.t=$('#t').value;cur.raw=$('#raw').value;draw();if(!cur.id)st('tr-draft',JSON.stringify(cur));}
 $('#t').oninput=onIn;$('#raw').oninput=onIn;
 $('#sel').onchange=e=>{const c=list.find(x=>x.id===e.target.value);if(!c){drawSel();return;}if(dirty()&&!confirm('Hay cambios sin guardar. ¿Cargar otra tarjeta?')){drawSel();return;}setCur(c);};
 $('#new').onclick=()=>{if(dirty()&&!confirm('Hay cambios sin guardar. ¿Empezar una nueva?'))return;st('tr-draft','');setCur({});};
 $('#save').onclick=()=>{
-  if(!cur.t.trim())return toast('Escribe un título');if(!cur.raw.trim())return toast('Pega los datos');if(!KEY)return askKey();
+  if(!cur.t.trim())return toast('Escribe un título');if(!cur.raw.trim())return toast('Pega los datos');
   const id=cur.id||mk(cur.t),b=$('#save'),it={id,t:cur.t.trim(),raw:cur.raw};b.disabled=true;b.textContent='Guardando…';
   api('POST',id,{t:it.t,raw:it.raw}).then(()=>{cur.id=id;const i=list.findIndex(x=>x.id===id);if(i<0)list.unshift(it);else list[i]=it;st('tr-draft','');drawSel();draw();toast('¡Guardado!');}).catch(e=>toast('Error: '+e.message)).then(()=>{b.disabled=false;b.textContent='💾 Guardar';});
 };
@@ -134,11 +127,9 @@ $('#del').onclick=()=>{
 };
 $('#cl').onclick=()=>link()?doCopy(link(),$('#cl'),'Enlace copiado'):toast('Primero guarda la tarjeta');
 $('#op').onclick=()=>link()?window.open(link(),'_blank'):toast('Primero guarda la tarjeta');
-const go=()=>{const v=$('#ki').value.trim();if(!v)return;KEY=v;st('tr-key',v);$('#ki').value='';$('#kx').hidden=true;sync();};
-$('#kb').onclick=go;$('#ki').onkeydown=e=>{if(e.key==='Enter')go();};
 if(qid){fetch(API+'&id='+encodeURIComponent(qid)+'&t='+Date.now()).then(r=>r.json()).then(j=>{if(j.ok)setCur({id:qid,t:j.data.t,raw:j.data.raw});}).catch(()=>{});}
 else{try{const d=JSON.parse(g('tr-draft')||'null');if(d)setCur(d);else setCur({});}catch(e){setCur({});}}
-if(KEY)sync();else askKey();
+sync();
 })();
 </script>
 </body>
